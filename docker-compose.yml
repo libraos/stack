@@ -56,7 +56,13 @@ services:
       postgres:
         condition: service_healthy
       surrealdb:
-        condition: service_started
+        # service_healthy, not service_started (libraos/libraos#1282).
+        # Knowledge-store selection is ONE-SHOT at boot: if the kernel wins
+        # the race against a still-starting SurrealDB it silently falls back
+        # to a lexical-only store for the whole process lifetime, with no
+        # retry — the KB then answers from keyword matching while the
+        # deployment believes it has semantic search.
+        condition: service_healthy
     networks:
       - nova-net
 
@@ -79,12 +85,30 @@ services:
       - nova-net
 
   surrealdb:
-    image: surrealdb/surrealdb:v3
+    # Pinned by digest, not the floating :v3 (libraos/libraos#1282).
+    # Upstream moves that pointer: on 2026-09-01 they re-pointed v3 to 3.1.6,
+    # a month AFTER 3.2.4 shipped, while `latest` stayed on 3.2.4. A
+    # `docker compose pull` on a floating tag can therefore change the
+    # datastore version under a running deployment that has data on disk.
+    # This digest is what :v3 already resolved to, so it is a freeze rather
+    # than an upgrade, and it is the OCI image INDEX digest so amd64 and
+    # arm64 both resolve.
+    image: surrealdb/surrealdb:v3.1.6@sha256:ea7c472e5c971cee1ceb601fc8301f6b6b10edb5988adc53f33b416be3d8dc63
     container_name: nova-surrealdb
     restart: unless-stopped
     command: start --user root --pass ${SURREAL_PASSWORD:-root} file:/data/database.db
     volumes:
       - surreal-data:/data
+    # EXEC form is required: the image has no /bin/sh, so a shell-form
+    # healthcheck (a bare `test:` string, or CMD-SHELL) dies with
+    #   exec: "/bin/sh": stat /bin/sh: no such file or directory
+    # and the container reports unhealthy forever while serving fine.
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "ws://localhost:8000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - nova-net
 
