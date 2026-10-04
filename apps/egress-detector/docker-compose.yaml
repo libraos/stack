@@ -1,0 +1,30 @@
+# Egress detector: checks every outbound web search query and fetched URL
+# for personal data before Libra OS sends it to a search provider.
+# Model: GLiNER2-PII (Apache-2.0), CPU.
+#
+# Layer on top of the root compose:
+#   docker compose -f docker-compose.yml -f apps/egress-detector/docker-compose.yaml up -d --build
+#
+# Then set in the root .env (and re-up Libra OS):
+#   LIBRA_OS_EGRESS_GUARD=detector
+#   LIBRA_OS_EGRESS_DETECTOR_URL=http://egress-detector:8080/detect
+#
+# The detector receives the queries it checks, so it publishes no host port:
+# only containers on nova-net can reach it.
+
+services:
+  egress-detector:
+    build: ./apps/egress-detector
+    image: libraos-egress-detector:local
+    container_name: nova-egress-detector
+    restart: unless-stopped
+    environment:
+      - DETECTOR_THRESHOLD=${DETECTOR_THRESHOLD:-0.5}
+      # Comma-separated model labels; unset uses the defaults in app.py.
+      # - DETECTOR_LABELS=person,email,phone_number
+    networks:
+      - nova-net
+
+networks:
+  nova-net:
+    external: true

@@ -5,7 +5,7 @@ Reference deployment manifests for [Libra OS](https://github.com/MeganovaAI/nova
 This repo contains:
 
 - A root `docker-compose.yml` that brings up **Libra OS core** (server + Postgres + SurrealDB) from the public Docker image at `ghcr.io/libraos/libraos`.
-- An `apps/` directory with optional companion stacks: LibreChat (chat UI), SearXNG (meta-search), crawl4ai (page fetcher), Docling (document parser).
+- An `apps/` directory with optional companion stacks: LibreChat (chat UI), SearXNG (meta-search), crawl4ai (page fetcher), Docling (document parser), egress-detector (PII check on outbound search queries).
 - `docs/` with cross-cutting setup notes (networking, OIDC, upgrades).
 
 You don't need any of the apps under `apps/` to run Libra OS. Pull only what you need.
